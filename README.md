@@ -14,13 +14,14 @@ Once Sendgrid receives an email it will send a webhook event to the relay server
 
 To send emails through your private email address, add "Relay: firstname lastname <recipent-email@domain.com>" to the subject line of your message. The message will be forwarded through the relay server and will appear as if it comes from your domain.
 
-### Limitations
-
-Has a couple limitations. TODO
-
-### Setup
+#### Setup
 
 1. Create a Sendgrid account.
 2. Setup your DNS records to point your mx records to Sendgrid.
 3. Setup [Sendgrid inbound parse](https://sendgrid.com/docs/for-developers/parsing-email/setting-up-the-inbound-parse-webhook/). Set Destination URL to https://yourdomain.tld/go. (The */go* path can be changed through [environment variables](#environment-variables))
 4. Deploy the app to your server.
+
+#### Limitations
+
+Has a couple limitations. TODO
+
