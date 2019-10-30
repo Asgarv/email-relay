@@ -1,13 +1,13 @@
-
 const template: any = {
-    RELAY_ADDRESS_PREFIX: { required: false, default: '<' },
-    RELAY_ADDRESS_SUFFIX: { required: false, default: '>' },
-    RELAY_EMAIL_ADDRESS: { required: true },
-    RELAY_FROM_ADDRESS: { required: true },
-    RELAY_PATH: { required: false, default: '/go' },
-    RELAY_PORT: { required: true },
-    RELAY_SENDGRID_KEY: { required: true },
-    RELAY_TEMP_ATTACHMENT_PATH: { required: true },
+  RELAY_EMAIL_ADDRESS: { required: true },
+  RELAY_EMAIL_NAME: { required: true },
+  RELAY_PATH: { required: false, default: '/go' },
+  RELAY_PORT: { required: true },
+  RELAY_TO_PREFIX: { required: false, default: 'Relay-To:' },
+  RELAY_FROM_PREFIX: { required: false, default: 'Relay-From:' },
+  RELAY_SENDGRID_KEY: { required: true },
+  RELAY_TEMP_ATTACHMENT_PATH: { required: true },
+  RELAY_NAMETAGS: { required: true },
 };
 
 /**
@@ -17,23 +17,24 @@ const template: any = {
  * @return {void}
  */
 export function verify(): void {
-    const errors: string[] = [];
+  const errors: string[] = [];
 
-    for (const [key, obj] of Object.entries(template)) {
-        const ob: any = obj;
-        if (ob.required) {
-            if (!process.env[key]) {
-                errors.push(key);
-            }
-        }
+  for (const [key, obj] of Object.entries(template)) {
+    const ob: any = obj;
+    if (ob.required) {
+      if (!process.env[key]) {
+        errors.push(key);
+      }
     }
+  }
 
-    if (errors.length > 0) {
-        throw new Error(
-            `\n\nThe following required environment variables are not set:
+  if (errors.length > 0) {
+    throw new Error(
+      `\n\nThe following required environment variables are not set:
             ${errors.map((err: string) => `\n- ${err}`)}
-            `.replace(',', ''));
-    }
+            `.replace(',', '')
+    );
+  }
 }
 
 /**
@@ -43,6 +44,6 @@ export function verify(): void {
  * @param {string} v
  * @return {any}
  */
-export function get(v: string): any {
-    return process.env[v] || template[v].default || null;
+export function get(v: string): string | null {
+  return process.env[v] || template[v].default || null;
 }

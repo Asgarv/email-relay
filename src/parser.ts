@@ -1,9 +1,18 @@
-
-import { ParsedBody, ParsedFile, RequestBody, RequestFiles } from './types/request';
+import {
+  ParsedBody,
+  ParsedFile,
+  RequestBody,
+  RequestFiles
+} from './types/request';
 
 import * as environment from './environment';
 
 import fs from 'fs';
+
+interface EmailExtract {
+  email: string;
+  name: string;
+}
 
 /**
  * Returns a sleeker request body, see ParsedBody.
@@ -12,29 +21,22 @@ import fs from 'fs';
  * @return {ParsedBody}
  */
 export function parseBody(body: RequestBody): ParsedBody {
-
-    const parsed: ParsedBody = {
-        raw: body,
-
-        subject: body.subject,
-
-        to: body.to,
-        to_address: extract(body.to).email,
-        to_name: extract(body.to).name,
-
-        from: body.from,
-        from_address: extract(body.from).email,
-        from_name: extract(body.from).name,
-
-        html: body.html,
-        text: body.text,
-
-        attachments: [],
-
-        ip: body.sender_ip
-    };
-
-    return parsed;
+  return {
+    raw: body,
+    subject: body.subject,
+    to: {
+      email: extract(body.to).email,
+      name: extract(body.to).name.replace(/"/g, '')
+    },
+    from: {
+      email: extract(body.from).email,
+      name: extract(body.from).name.replace(/"/g, '')
+    },
+    html: body.html,
+    text: body.text,
+    attachments: [],
+    ip: body.sender_ip
+  };
 }
 
 /**
@@ -42,56 +44,48 @@ export function parseBody(body: RequestBody): ParsedBody {
  * "firstname lastname <firstname.lastname@example.com>"
  *
  * @param {string} str
- * @return {IEmailExtract}
+ * @return {EmailExtract}
  */
-function extract(str: string): IEmailExtract {
-    const split = str.split('<');
+export function extract(str: string): EmailExtract {
+  if (!str.includes('<')) {
     return {
-        email: split[1].slice(0, split[1].length - 1),
-        name: split[0].trim()
+      email: str,
+      name: ''
     };
-}
-
-interface IEmailExtract {
-    email: string;
-    name: string;
+  } else {
+    const split = str.split('<');
+    const email = split[1].slice(0, split[1].length - 1);
+    let name = split[0].trim();
+    if (email === name.replace(/"/g, '')) {
+      name = '';
+    }
+    return {
+      email,
+      name
+    };
+  }
 }
 
 /**
- * Parses attachments.
- * Returns _filename, content, encoding and mimetype_ of each attachment.
+ * Function to delete folders using fs.
+ * Note: Recursive function!
+ * Thanks to https://stackoverflow.com/users/1350476/sharpcoder
  *
- * @param {object} attachments
- * @return {ParsedFile[]} Parsed attachments
+ * @param {string} path - Folder path
+ * @return {void}
  */
-export function parseAttachments(attachments: RequestFiles, incoming: boolean): ParsedFile[] {
-
-    const parsed: ParsedFile[] = [];
-
-    Object.values(attachments).forEach((attachment: RequestFiles['file']): ParsedFile | undefined => {
-        const buffer: Buffer | string = readAndDeleteFile(attachment.file, attachment.uuid);
-
-        const file: ParsedFile = {
-            encoding: attachment.encoding,
-            filename: attachment.filename,
-            mimetype: attachment.mimetype
-        };
-
-        if (typeof buffer === 'string') {
-            if (incoming) {
-                file.content = Buffer.from(buffer, 'utf-8');
-            } else {
-                return;
-            }
-        }
-        else {
-            file.content = buffer;
-        }
-
-        parsed.push(file);
+function deleteFolder(path: string): void {
+  if (fs.existsSync(path)) {
+    fs.readdirSync(path).forEach(file => {
+      const cPath = path + '/' + file;
+      if (fs.lstatSync(cPath).isDirectory()) {
+        deleteFolder(cPath);
+      } else {
+        fs.unlinkSync(cPath);
+      }
     });
-
-    return parsed;
+    fs.rmdirSync(path);
+  }
 }
 
 /**
@@ -104,35 +98,47 @@ export function parseAttachments(attachments: RequestFiles, incoming: boolean): 
  * The file remains saved on the machine, and a .txt file will be attached containing the filepath.
  * @return {Buffer}
  */
-function readAndDeleteFile(path: string, uuid: string): Buffer | string {
-    try {
-        const buffer: Buffer = fs.readFileSync(path);
-        deleteFolderRecursive(`${environment.get('RELAY_TEMP_ATTACHMENT_PATH')}/${uuid}`);
-        return buffer;
-    } catch (error) {
-        console.log(`Unable to read file at ${path}. File will not be deleted.`);
-        return path;
-    }
+function readAndDeleteFile(path: string, uuid: string): string {
+  try {
+    const buffer: string = fs.readFileSync(path, { encoding: 'base64' });
+    deleteFolder(`${environment.get('RELAY_TEMP_ATTACHMENT_PATH')}/${uuid}`);
+    return buffer;
+  } catch (error) {
+    console.log(`Unable to read file at ${path}. File will not be deleted.`);
+    return path;
+  }
 }
 
 /**
- * Recursive function to delete folders using fs.
- * Thanks to https://stackoverflow.com/users/1350476/sharpcoder
+ * Parses attachments.
+ * Returns _filename, content, encoding and mimetype_ of each attachment.
  *
- * @param {string} path - Folder path
- * @return {void}
+ * @param {object} attachments
+ * @return {ParsedFile[]} Parsed attachments
  */
-function deleteFolderRecursive(path: string): void {
-    if (fs.existsSync(path)) {
-        fs.readdirSync(path).forEach((file) => {
-            const curPath = path + '/' + file;
-            if (fs.lstatSync(curPath).isDirectory()) {
-                deleteFolderRecursive(curPath);
-            }
-            else {
-                fs.unlinkSync(curPath);
-            }
-        });
-        fs.rmdirSync(path);
+export function parseAttachments(attachments: RequestFiles): ParsedFile[] {
+  const parsed: ParsedFile[] = [];
+
+  Object.values(attachments).forEach(
+    (attachment: RequestFiles['file']): void => {
+      const buffer: string = readAndDeleteFile(
+        attachment.file,
+        attachment.uuid
+      );
+
+      const file: ParsedFile = {
+        encoding: attachment.encoding,
+        filename: attachment.filename,
+        mimetype: attachment.mimetype
+      };
+
+      if (typeof buffer === 'string') {
+        file.content = buffer;
+      }
+
+      parsed.push(file);
     }
+  );
+
+  return parsed;
 }
