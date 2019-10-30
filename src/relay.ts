@@ -18,61 +18,53 @@ function lookup(email: string): string | null {
  * @return {object}
  */
 export function process(body: RequestBody, files: RequestFiles): object {
-  try {
-    const data: ParsedBody = parser.parseBody(body);
+  const data: ParsedBody = parser.parseBody(body);
 
-    const relay: Relay = detectRelay(data.subject);
+  const relay: Relay = detectRelay(data.subject);
 
-    data.attachments = parser.parseAttachments(files);
+  data.attachments = parser.parseAttachments(files);
 
-    if (relay.relay) {
-      // Email is outgoing
-      data.subject = sanitize(data.subject);
-      send({
-        ...data,
-        to: { email: relay.to.email, name: relay.to.name },
-        from: {
-          email: data.to.email,
-          name: lookup(data.to.email)
-        }
-      });
-    } else {
-      // Email is incoming
-      data.subject = createSubject(data);
-      send({
-        ...data,
-        to: {
-          email: environment.get('RELAY_EMAIL_ADDRESS'),
-          name: environment.get('RELAY_EMAIL_NAME')
-        },
-        from: {
-          email: data.to.email,
-          name: data.from.name
-        }
-      });
-    }
-  } catch (e) {
-    console.log(e);
+  if (relay.relay) {
+    // Email is outgoing
+    data.subject = sanitize(data.subject);
+    send({
+      ...data,
+      to: { email: relay.to.email, name: relay.to.name },
+      from: {
+        email: data.to.email,
+        name: lookup(data.to.email)
+      }
+    });
+  } else {
+    // Email is incoming
+    data.subject = createSubject(data);
+    send({
+      ...data,
+      to: {
+        email: environment.get('RELAY_EMAIL_ADDRESS'),
+        name: environment.get('RELAY_EMAIL_NAME')
+      },
+      from: {
+        email: data.to.email,
+        name: data.from.name
+      }
+    });
   }
 
   return {};
 }
 
 function send(data: ParsedBody): void {
-  try {
-    sendgrid.send({
-      attachments: data.attachments.map((a: any) => {
-        return { content: a.content, filename: a.filename };
-      }),
-      from: data.from,
-      html: data.html,
-      subject: data.subject,
-      text: data.text,
-      to: data.to
-    });
-  } catch (e) {
-    console.log(e);
-  }
+  sendgrid.send({
+    attachments: data.attachments.map((a: any) => {
+      return { content: a.content, filename: a.filename };
+    }),
+    from: data.from,
+    html: data.html,
+    subject: data.subject,
+    text: data.text,
+    to: data.to
+  });
 }
 
 /**
