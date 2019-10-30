@@ -101,11 +101,7 @@ function createSubject(data: ParsedBody): string {
  */
 function sanitize(subject: string): string {
   const RTFix: string = environment.get('RELAY_TO_PREFIX'); // default 'Relay-To:'
-  const RFFix: string = environment.get('RELAY_FROM_PREFIX'); // default 'Relay-From:'
-
   subject = subject.split(RTFix)[0];
-  subject = subject.split(RFFix)[0];
-
   return subject.trim();
 }
 
@@ -118,14 +114,13 @@ interface Relay {
 }
 
 /**
- * Uses RELAY_TO_PREFIX and RELAY_FROM_PREFIX to check if the message should be relayed.
+ * Uses RELAY_TO_PREFIX to check if the message should be relayed.
  *
  * @param {string} message
  * @return {object}
  */
 function detectRelay(subject: string): Relay {
   const RTFix: string = environment.get('RELAY_TO_PREFIX'); // default 'Relay-To:'
-  const RFFix: string = environment.get('RELAY_FROM_PREFIX'); // default 'Relay-From:'
 
   // Example subject:
   // Relay-To: Firstname Lastname <firstname.lastname@gmail.com> Relay-From: Company Support <support@company.com>
@@ -137,29 +132,9 @@ function detectRelay(subject: string): Relay {
     relay = true;
     // Title includes the recipent email
     // Email should be relayed
-    if (subject.includes(RFFix)) {
-      // Title also includes the sender email
-      const loc = subject.lastIndexOf(RFFix) - subject.lastIndexOf(RTFix);
-
-      if (loc > 0) {
-        // Relay-To occurs before Relay-From in string
-        rt = subject
-          .substring(
-            subject.lastIndexOf(RTFix) + RTFix.length,
-            subject.lastIndexOf(RFFix)
-          )
-          .trim();
-      } else {
-        // Relay-From occurs before Relay-To in string
-        rt = subject
-          .substring(subject.lastIndexOf(RTFix) + RTFix.length, subject.length)
-          .trim();
-      }
-    } else {
-      rt = subject
-        .substring(subject.lastIndexOf(RTFix) + RTFix.length, subject.length)
-        .trim();
-    }
+    rt = subject
+      .substring(subject.lastIndexOf(RTFix) + RTFix.length, subject.length)
+      .trim();
   }
 
   return {

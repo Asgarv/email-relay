@@ -4,7 +4,6 @@ const template: any = {
   RELAY_PATH: { required: false, default: '/go' },
   RELAY_PORT: { required: true },
   RELAY_TO_PREFIX: { required: false, default: 'Relay-To:' },
-  RELAY_FROM_PREFIX: { required: false, default: 'Relay-From:' },
   RELAY_SENDGRID_KEY: { required: true },
   RELAY_TEMP_ATTACHMENT_PATH: { required: true },
   RELAY_NAMETAGS: { required: true },
